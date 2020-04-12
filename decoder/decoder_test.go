@@ -2,7 +2,7 @@ package decoder_test
 
 import (
 	"fmt"
-	"github.com/MikolajMGT/h264decoder/decoder"
+	"github.com/mike1808/h264decoder/decoder"
 	"gocv.io/x/gocv"
 	"image/jpeg"
 	"io"

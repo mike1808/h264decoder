@@ -1,4 +1,4 @@
-module github.com/MikolajMGT/h264decoder
+module github.com/mike1808/h264decoder
 
 go 1.14
 
