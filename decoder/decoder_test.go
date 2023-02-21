@@ -18,7 +18,7 @@ func BenchmarkDecoder(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		d, err := decoder.New(decoder.PixelFormatRGB)
+		d, err := decoder.New(decoder.PixelFormatRGB, decoder.H264)
 		if err != nil {
 			panic(err)
 		}
@@ -48,8 +48,8 @@ func BenchmarkDecoder(b *testing.B) {
 	}
 }
 
-func TestDecoder(t *testing.T) {
-	d, err := decoder.New(decoder.PixelFormatBGR)
+func TestDecoderH264(t *testing.T) {
+	d, err := decoder.New(decoder.PixelFormatBGR, decoder.H264)
 	if err != nil {
 		panic(err)
 	}
@@ -95,13 +95,109 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
-func TestDecoderImage(t *testing.T) {
-	d, err := decoder.New(decoder.PixelFormatRGB)
+func TestDecoderImageH264(t *testing.T) {
+	d, err := decoder.New(decoder.PixelFormatRGB, decoder.H264)
 	if err != nil {
 		panic(err)
 	}
 
 	stream, err := os.Open("./artifacts/stream.h264")
+	if err != nil {
+		panic(err)
+	}
+
+	buf := make([]byte, 2048)
+	frameCounter := 0
+
+	for {
+		nread, err := stream.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				return
+			} else {
+				t.Error(err)
+			}
+		}
+		frames, err := d.Decode(buf[:nread])
+		if err != nil {
+			t.Error(err)
+		}
+		if len(frames) == 0 {
+			t.Log("no frames")
+		} else {
+			for _, frame := range frames {
+				img := frame.ToRGB()
+				f, err := os.Create(fmt.Sprintf("./artifacts/frames/frame_%d.jpg", frameCounter))
+				frameCounter++
+				if err != nil {
+					t.Fatal(err)
+				}
+				err = jpeg.Encode(f, img, &jpeg.Options{Quality: 90})
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.Close()
+			}
+			t.Logf("found %d frames", len(frames))
+		}
+	}
+}
+
+func TestDecoderH265(t *testing.T) {
+	d, err := decoder.New(decoder.PixelFormatBGR, decoder.H265)
+	if err != nil {
+		panic(err)
+	}
+
+	stream, err := os.Open("./artifacts/stream.h265")
+	if err != nil {
+		panic(err)
+	}
+
+	window := gocv.NewWindow("H.265 decoder")
+
+	buf := make([]byte, 2048)
+
+	for {
+		nread, err := stream.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				return
+			} else {
+				t.Error(err)
+			}
+		}
+		frames, err := d.Decode(buf[:nread])
+		if err != nil {
+			t.Error(err)
+		}
+		if len(frames) == 0 {
+			t.Log("no frames")
+		} else {
+			for _, frame := range frames {
+				img, _ := gocv.NewMatFromBytes(frame.Height, frame.Width, gocv.MatTypeCV8UC3, frame.Data)
+				if img.Empty() {
+					continue
+				}
+
+				window.IMShow(img)
+				window.WaitKey(10)
+			}
+
+			t.Logf("found %d frames", len(frames))
+		}
+	}
+}
+
+func TestDecoderImageH265(t *testing.T) {
+	d, err := decoder.New(decoder.PixelFormatRGB, decoder.H265)
+	if err != nil {
+		panic(err)
+	}
+
+	stream, err := os.Open("./artifacts/stream.h265")
 	if err != nil {
 		panic(err)
 	}
